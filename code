@@ -1,0 +1,83 @@
+import chess
+import torch
+import torch.nn as nn
+import random
+
+# Neural Network Model
+class ChessNet(nn.Module):
+    def __init__(self):
+        super(ChessNet, self).__init__()
+        self.fc1 = nn.Linear(64, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 1)
+
+    def forward(self, x):
+        x = torch.relu(self.fc1(x))
+        x = torch.relu(self.fc2(x))
+        x = torch.tanh(self.fc3(x))
+        return x
+
+model = ChessNet()
+
+# Convert board to neural network input
+def board_to_tensor(board):
+    board_tensor = [0]*64
+
+    for square, piece in board.piece_map().items():
+        value = piece.piece_type
+        if piece.color == chess.BLACK:
+            value = -value
+        board_tensor[square] = value
+
+    return torch.tensor(board_tensor, dtype=torch.float32)
+
+# Evaluate position with AI
+def evaluate(board):
+    tensor = board_to_tensor(board)
+    with torch.no_grad():
+        score = model(tensor)
+    return score.item()
+
+# Choose best move using AI evaluation
+def get_ai_move(board):
+
+    best_move = None
+    best_score = -9999
+
+    for move in board.legal_moves:
+        board.push(move)
+        score = evaluate(board)
+        board.pop()
+
+        if score > best_score:
+            best_score = score
+            best_move = move
+
+    return best_move
+
+# Play game in terminal
+def play():
+
+    board = chess.Board()
+
+    while not board.is_game_over():
+
+        print(board)
+        print()
+
+        if board.turn == chess.WHITE:
+            move = input("Your move (e2e4): ")
+            try:
+                board.push_uci(move)
+            except:
+                print("Invalid move")
+                continue
+        else:
+            print("AI thinking...")
+            move = get_ai_move(board)
+            board.push(move)
+            print("AI played:", move)
+
+    print("Game Over:", board.result())
+
+play()
